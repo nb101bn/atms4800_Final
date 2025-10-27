@@ -122,7 +122,11 @@ def net_cdf_fetch(api_url : str,
     
     #=========================# API HANDLING LOGIC #=========================#
     
-
+def data_frame_fetch(URL : Optional[str] = None,
+                     CSV_PATH : Optional[str] = None,
+                     ):
+    #=========================# PREPROCESSING LOGIC #=========================#
+    pass
                                  
 class processor():
     def __init__(self, url,):
