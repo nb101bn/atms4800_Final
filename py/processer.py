@@ -20,7 +20,7 @@ import metpy as mp
 import pandas as pd
 import geopandas as gpd
 import cartopy.crs as ccrs
-from typing import Union, Optional, List
+from typing import Union, Optional, List, Tuple
 
 def net_cdf_fetch(api_url : Optional[str] = None,
                   url : Optional[str] = None,
@@ -126,13 +126,6 @@ def net_cdf_fetch(api_url : Optional[str] = None,
     # Note: The actual implementation of API calls would go here but is omitted until such a time when API
     # calling is required and can be properly tested.
     
-<<<<<<< Updated upstream
-def data_frame_fetch(URL : Optional[str] = None,
-                     CSV_PATH : Optional[str] = None,
-                     ):
-    #=========================# PREPROCESSING LOGIC #=========================#
-    pass
-=======
     #=========================# URL HANDLING LOGIC #=========================#
     ## 1. Attempt to fetch data from the url provided in the most simple way possible.
     if url:
@@ -151,7 +144,39 @@ def data_frame_fetch(URL : Optional[str] = None,
     
     return print("The processor worked")
 
->>>>>>> Stashed changes
+def data_frame_fetch(URL : Optional[str] = None,
+                     CSV_PATH : Optional[Union[List[str], str]] = None,
+                     TYPE : Optional[str] = None,
+                     variables: Optional[Union[List[str], str]] = None,
+                     time_range: Optional[Union[List[Union[str,pd.Timestamp]], str]] = None,
+                     spatial_bounds: Optional[Union[List[Union[float, int], Tuple[Union[float, int]]]]] = None,
+                     output:Optional[Union[os.PathLike, str]] = None,
+                     format_method: Optional[str] = None) -> xr.Dataset:
+    '''
+    Fetches non-netCDF data from given URLs or local paths and processes it into a netCDF format. The specific parameters of
+    data can be customized using the functions and arguments provided. None of the parsing arguments are required, but if at
+    least one of the path arguments is not provided a ValueError will be raised.
+    Parameters:
+        URL (str): The specific URL to fetch the data from (e.g. https://example.com/Data). This can be in either CSV or JSON format preferably not in HTML or XML format but can be handled.
+        CSV_PATH (str or list of str): The specific or local path on a local machine to fetch the data from (e.g. /home/user/data/file.csv). This can be in the format of CSV, JSON, or Excel files. The user can provide multiple paths in which case all paths will be concatenated into one xr.Dataset.
+        TYPE (str): The type of data being fetched or the format of the data being fetched (e.g. 'CSV', 'JSON', 'Excel', etc...). This is not required but will make the processer more efficient.
+        variables (str or list of str): The variables to be fetched from the data source (e.g. Temperature, Humidity, etc...). This can be multiple variables or a singular variable but these will be the variables that end up concatenated into the final xr.Dataset.
+        time_range (list of str or pd.Timestamp): The time range for which the data is being fetched (e.g. YYYY/MM/DD). This can be a singular date or a date range but it is not required for the full dataset to be fetched.
+        spatial_bounds (list or tuple of float or int): The spatial bounds (e.g. latitude and longitude) for the data. This is not required but will make the function more efficient and allow for more specific data analysis.
+        output (str or os.PathLike): The output path where the final netCDF file will be saved. If not provided the file will be saved at the root drive of the processor file.
+        format_method (str): The desired format of the output data (e.g. 'netCDF', 'CSV', 'Pandas DataFrame', etc...). If not provided the default format will be 'netCDF' for the output file and xr.Dataset for the output dataframe.
+    '''
+    #=========================# PREPROCESSING LOGIC #=========================#
+    pass
+
+def data_handler(PATH : Optional[Union[List[str], str]] = None,
+                 TYPE : Optional[str] = None,
+                 variables: Optional[Union[List[str], str]] = None,
+                 time_range: Optional[Union[List[Union[str, pd.Timestamp]], str]] = None,
+                 spatial_bounds: Optional[Union[List[Union[float, int], Tuple[Union[float, int]]]]] = None,
+                 levels: Optional[Union[List[str], str]] = None,
+                 format_method: Optional[str] = None) -> xr.Dataset:
+    pass
                                  
 class processor():
     def __init__(self, url,):
@@ -165,6 +190,7 @@ net_cdf_fetch(url='https://www.ncei.noaa.gov/data/oceans/woa/WOA18/DATA/temperat
               spatial_bounds=[-10.0, 35.0, 10.0, 45.0],
               levels=['1000mb', '850mb'],
               format='netCDF')
+data_frame_fetch()
 
 
 
