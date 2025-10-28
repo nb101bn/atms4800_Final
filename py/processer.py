@@ -3,6 +3,9 @@ This module is a package for calling and processing data from various sources us
 Specifically this module is meant to handle and package the data it handles in a way that can be easily
 formated into a netCDF file. Once processed the data can be shipped into different files for plotting or 
 general analysis.
+
+Author: Nathan Beach
+Last Modified: October 28, 2025
 '''
 
 #Imports required for class to work properly
@@ -19,10 +22,10 @@ import geopandas as gpd
 import cartopy.crs as ccrs
 from typing import Union, Optional, List
 
-def net_cdf_fetch(api_url : str,
-                  url : str,
+def net_cdf_fetch(api_url : Optional[str] = None,
+                  url : Optional[str] = None,
                   variables : Optional[Union[List[str], str]] = None, 
-                  time_range : Optional[Union[List[Union[str, pd.Timestamp], str]]] = None, 
+                  time_range : Optional[Union[List[Union[str, pd.Timestamp]], str]] = None, 
                   spatial_bounds : Optional[List[Union[float, int]]] = None, 
                   levels : Optional[Union[List[str], str]] = None, 
                   format : Optional[str] = None) -> xr.Dataset:
@@ -119,14 +122,36 @@ def net_cdf_fetch(api_url : str,
                 f"The format provided was '{format}'."
             )
             
-    
     #=========================# API HANDLING LOGIC #=========================#
+    # Note: The actual implementation of API calls would go here but is omitted until such a time when API
+    # calling is required and can be properly tested.
     
+<<<<<<< Updated upstream
 def data_frame_fetch(URL : Optional[str] = None,
                      CSV_PATH : Optional[str] = None,
                      ):
     #=========================# PREPROCESSING LOGIC #=========================#
     pass
+=======
+    #=========================# URL HANDLING LOGIC #=========================#
+    ## 1. Attempt to fetch data from the url provided in the most simple way possible.
+    if url:
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            raise ConnectionError(f"Failed to fetch data from the provided URL: {url}. \nError: {e}")
+        xr_dataset = xr.open_dataset(io.BytesIO(response.content), decode_times=False)
+        # Check if the dataset contains anything at all
+        if xr_dataset is None or len(xr_dataset.data_vars) == 0:
+            raise ValueError(f"The dataset fetched from the URL is empty or invalid: {url}.")
+        with open(file='debug_dataset.nc', mode='wb') as f:
+            f.write(response.content)
+            
+    
+    return print("The processor worked")
+
+>>>>>>> Stashed changes
                                  
 class processor():
     def __init__(self, url,):
@@ -134,7 +159,12 @@ class processor():
     def net_cdf_fetch(self):
         pass
 
-net_cdf_fetch(api_url='http://example.com/api')
+net_cdf_fetch(url='https://www.ncei.noaa.gov/data/oceans/woa/WOA18/DATA/temperature/netcdf/95A4/0.25/woa18_95A4_t00_04.nc',
+              variables=["Temperature", 'Humidity'],
+              time_range=['20230101', '20230131'],
+              spatial_bounds=[-10.0, 35.0, 10.0, 45.0],
+              levels=['1000mb', '850mb'],
+              format='netCDF')
 
 
 
