@@ -5,7 +5,8 @@ formated into a netCDF file. Once processed the data can be shipped into differe
 general analysis.
 
 Author: Nathan Beach
-Last Modified: October 28, 2025
+Last Commit: October 28, 2025
+Last Modified: November 4, 2025
 '''
 
 #Imports required for class to work properly
@@ -22,7 +23,7 @@ import geopandas as gpd
 import cartopy.crs as ccrs
 from typing import Union, Optional, List, Tuple
 
-def net_cdf_fetch(api_url : Optional[str] = None,
+def web_fetch(api_url : Optional[str] = None,
                   url : Optional[str] = None,
                   variables : Optional[Union[List[str], str]] = None, 
                   time_range : Optional[Union[List[Union[str, pd.Timestamp]], str]] = None, 
@@ -34,11 +35,17 @@ def net_cdf_fetch(api_url : Optional[str] = None,
     data to be fetched can be customized using the functions and argumetns provided.
     Parameters:
         api_url (str): The base URL of the API to fetch data from (e.g. https://example.com/Data/api).
+        
         url (str): The specific endpoint or URL to fetch the data from (e.g. https://example.com/Data).
+        
         variables (Optional str or List of str): The variables to be fetched from the data source (e.g. Temperature, Humidity, etc...).
+        
         time_range (Optional List of str or pd.Timestamp): The time range for which the data is to be fetched (e.g. YYYY/MM/DD).
+        
         spatial_bounds (Optional List of float or int): The spatial bounds (e.g. latitude and longitude) for the data.
+        
         levels (Optional str or List of str): The levels (e.g. pressure or height levels) for the data to be fetched.
+        
         format (Optional str): The desired format of the output data (e.g. 'netCDF', 'CSV', 'Pandas DataFrame', etc.).
     '''
     # Helper function for normalizing variables and levels
@@ -144,7 +151,7 @@ def net_cdf_fetch(api_url : Optional[str] = None,
     
     return print("The processor worked")
 
-def data_frame_fetch(URL : Optional[str] = None,
+def local_fetch(URL : Optional[str] = None,
                      CSV_PATH : Optional[Union[List[str], str]] = None,
                      TYPE : Optional[str] = None,
                      variables: Optional[Union[List[str], str]] = None,
@@ -158,24 +165,136 @@ def data_frame_fetch(URL : Optional[str] = None,
     least one of the path arguments is not provided a ValueError will be raised.
     Parameters:
         URL (str): The specific URL to fetch the data from (e.g. https://example.com/Data). This can be in either CSV or JSON format preferably not in HTML or XML format but can be handled.
+        
         CSV_PATH (str or list of str): The specific or local path on a local machine to fetch the data from (e.g. /home/user/data/file.csv). This can be in the format of CSV, JSON, or Excel files. The user can provide multiple paths in which case all paths will be concatenated into one xr.Dataset.
+        
         TYPE (str): The type of data being fetched or the format of the data being fetched (e.g. 'CSV', 'JSON', 'Excel', etc...). This is not required but will make the processer more efficient.
+        
         variables (str or list of str): The variables to be fetched from the data source (e.g. Temperature, Humidity, etc...). This can be multiple variables or a singular variable but these will be the variables that end up concatenated into the final xr.Dataset.
+        
         time_range (list of str or pd.Timestamp): The time range for which the data is being fetched (e.g. YYYY/MM/DD). This can be a singular date or a date range but it is not required for the full dataset to be fetched.
+        
         spatial_bounds (list or tuple of float or int): The spatial bounds (e.g. latitude and longitude) for the data. This is not required but will make the function more efficient and allow for more specific data analysis.
+        
         output (str or os.PathLike): The output path where the final netCDF file will be saved. If not provided the file will be saved at the root drive of the processor file.
+        
         format_method (str): The desired format of the output data (e.g. 'netCDF', 'CSV', 'Pandas DataFrame', etc...). If not provided the default format will be 'netCDF' for the output file and xr.Dataset for the output dataframe.
     '''
+    
+    # Helper functioin for normalizing variables and levels
+    
+    def _normalize_list_input(data, param_name: str):
+        """Converts string input to a list of strings, or validates existing list."""
+        if data is None:
+            return None
+        
+        if isinstance(data, str):
+            return [data]
+        
+        if isinstance(data, list):
+            try:
+                # Attempt to convert all elements to string
+                return [str(item) for item in data]
+            except Exception as e:
+                raise ValueError(f"The '{param_name}' parameter must contain items that can be converted to strings.") from e
+        
+        # Handle unexpected types (e.g., set, int, float)
+        raise ValueError(f"The '{param_name}' parameter must be a string or a list of strings.")
+    
     #=========================# PREPROCESSING LOGIC #=========================#
     pass
 
-def data_handler(PATH : Optional[Union[List[str], str]] = None,
+def data_handler(PATH : Union[List[str], str],
+                 PATH_METHOD : Optional[str] = None,
                  TYPE : Optional[str] = None,
                  variables: Optional[Union[List[str], str]] = None,
                  time_range: Optional[Union[List[Union[str, pd.Timestamp]], str]] = None,
+                 time_filter: Optional[str] = None,
                  spatial_bounds: Optional[Union[List[Union[float, int], Tuple[Union[float, int]]]]] = None,
                  levels: Optional[Union[List[str], str]] = None,
+                 regrid_resolution: Optional[Union[Tuple[Union[float, int]], List[Union[float, int]]]] = None,
+                 regrid_method: Optional[str] = None,
+                 statistic: str = 'mean',
+                 squeeze_dims: bool = False,
                  format_method: Optional[str] = None) -> xr.Dataset:
+    '''
+    Handles and processes data from local paths into a netCDF format. The specific parameters of which can be set
+    by the user using the arguments provided. None of the parsing arguments are required, but if PATH is not provided
+    a ValueError will be raised.
+    Parameters:
+        PATH (str or list of str): The specific or absolute path on a local machine to fetch the data from (e.g. /home/user/data/file.nc4).
+        
+        PATH_METHOD (Optional str): The method by which the data will be fetched from the path provided (e.g. 'multiple', 'single', 'list', etc...).
+        
+        TYPE (Optional str): The type of data being fetched or the format of the data being fetched (e.g. 'netCDF', 'CSV', 'JSON', etc...).
+        this is not required but will make the processer more efficient.
+        
+        variables (Optional str or list of str): The variables to be parsed out of the data source (e.g. Temperature, Humidity, etc...). This
+        
+        can be multiple variables or a singular variable and all of them will be concatenated into the final xr.Dataset.
+        
+        time_range (Optional list of str or pd.Timestamp): The time range for which the data is being parsed (e.g. YYYY/MM/DD).
+        
+        time_filter (Optional str): The method by which to filter the time range provided (e.g. 'between', 'before', 'after', etc...).
+        
+        spatial_bounds (optional list or tuple of float or int): The spatial bounds (e.g. latitude and longitude) for the data. This
+        is not required but will make plotting the data in the future easier and allow for more specific data analysis.
+        
+        levels (Optional str or list of str): The levels (e.g. pressure or height) for the data to be parsed.
+        
+        regrid_resolution (Optional tuple or list of float or int): The resolution to which the data should be regridded.
+        
+        regrid_method (Optional str): The method by which the data will be regridded (e.g. 'nearest', 'linear', 'cubic', etc...).
+        
+        statistic (Optional str): The statistic to be applied when regridding the data (e.g. 'mean', 'median', 'max', etc...)
+        
+        squeeze_dims (Optional bool): Whether or not to squeeze the dimensions of the final xr.Dataset.
+        
+        format_method (Optional str): The desired format of the output data (e.g. 'netCDF', 'CSV', 'Pandas DataFrame', etc...).
+    '''
+    
+    # Helper functioin for normalizing variables and levels
+    
+    def _normalize_list_input(data, param_name: str):
+        """Converts string input to a list of strings, or validates existing list."""
+        if data is None:
+            return None
+        
+        if isinstance(data, str):
+            return [data]
+        
+        if isinstance(data, list):
+            try:
+                # Attempt to convert all elements to string
+                return [str(item) for item in data]
+            except Exception as e:
+                raise ValueError(f"The '{param_name}' parameter must contain items that can be converted to strings.") from e
+        
+        # Handle unexpected types (e.g., set, int, float)
+        raise ValueError(f"The '{param_name}' parameter must be a string or a list of strings.")
+    
+    #=========================# PREPROCESSING LOGIC #=========================#
+    
+    if not PATH:
+        raise ValueError("The 'PATH' parameter must be provided to fetch data. Please provide at least one path to proceed.")
+    
+    
+    path_method = _normalize_list_input(PATH_METHOD, 'PATH_METHOD')
+    
+    Type = _normalize_list_input(TYPE, 'TYPE')
+    
+    variables = _normalize_list_input(variables, 'variables')
+    
+    time_filter = _normalize_list_input(time_filter, 'time_filter')
+    
+    levels = _normalize_list_input(levels, 'levels')
+    
+    regrid_method = _normalize_list_input(regrid_method, 'regrid_method')
+    
+    statistic = _normalize_list_input(statistic, 'statistic')
+    
+    format_method = _normalize_list_input(format_method, 'format_method')
+    
     pass
                                  
 class processor():
@@ -184,13 +303,13 @@ class processor():
     def net_cdf_fetch(self):
         pass
 
-net_cdf_fetch(url='https://www.ncei.noaa.gov/data/oceans/woa/WOA18/DATA/temperature/netcdf/95A4/0.25/woa18_95A4_t00_04.nc',
+web_fetch(url='https://www.ncei.noaa.gov/data/oceans/woa/WOA18/DATA/temperature/netcdf/95A4/0.25/woa18_95A4_t00_04.nc',
               variables=["Temperature", 'Humidity'],
               time_range=['20230101', '20230131'],
               spatial_bounds=[-10.0, 35.0, 10.0, 45.0],
               levels=['1000mb', '850mb'],
               format='netCDF')
-data_frame_fetch()
+local_fetch()
 
 
 

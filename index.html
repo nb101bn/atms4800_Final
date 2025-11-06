@@ -1,26 +1,108 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <title>Home</title>
-        <meta charset="utf-8">
-        <meta name="description" content="This is the ....">
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="css/custom.css">
+        <link rel="icon" type="image/png" href="images/icons/favicon.png">
+        <link rel="script" href="js/updater.js">
+        <title>Missouri AgMaps</title>
         <style>
-            body {
-                background-color: grey;
+            a {
+                color : rgb(25, 87, 25)
             }
         </style>
+        <script>
+            var default_flag = 1;
+            var interval_1 = setInterval(function(){
+                update_map();
+            }, (1000*300));
+            var desc_text = [];
+            // Description texts for each variable possible on the map
+            desc_text["air_temp"] = "Air temperature is measured at a height of 5.5 feet above ground level for all datasets.";
+            desc_text["dew_point"] = "Dewpoint temperature is measured at 5.5 feet. It is the temperature to which air must be cooled for saturation to occur, given constant pressure and water vapor content.";
+            desc_text["relative_humidity"] = "Relative humidity is measured at 5.5 feet and is the measure of the water vapor in the air at a given temperature";
+            desc_text["wind_speed"] = "Wind speed is measured at a height of 33 feet above ground level for all datasets.";
+            desc_text["wind_gust"] = "Wind gust is measured at a height of 33 feet above ground level for all datasets. It is the peak wind speed recorded at the station on that day.";
+            desc_text["soil_temp_2in"] = "Soil temperature is measured at a dpth of 2-inches below bare ground";
+            desc_text["soil_temp_4in"] = "Soil temperature is measured at a dpth of 4-inches below bare ground";
+            desc_text["precip_totals"] = "Precipitation totals are measured at ground level and represent the total liquid precipitation that fell at the station over the past 24 hours.";
+            desc_text["growing_degree_days"] = "Growing degree days (GDD) are calculated by taking the average of the daily maximum and minimum temperatures."
+            desc_text["historical_crop_yields"] = "Historical crop yields are provided by the USDA National Agricultural Statistics Services (NASS) and represent the average yeilds for the past 10 years.";
+            // Map relative adresses for each variable possible on the map
+            var map_address = [];            
+            map_address["air_temp"] = "images/maps/full/interpolated_air_temp.png";
+            map_address["dew_point"] = "images/maps/full/interpolated_dew_point.png";
+            map_address["relative_humidity"] = "images/maps/full/interpolated_relative_humidity.png";
+            map_address["wind_speed"] = "images/maps/full/interpolated_wind_speed.png";
+            map_address["wind_gust"] = "images/maps/full/interpolated_wind_gust.png";
+            map_address["soil_temp_2in"] = "images/maps/full/interpolated_soil_temp_2in.png";
+            map_address["soil_temp_4in"] = "images/maps/full/interpolated_soil_temp_4in.png";
+            map_address["precip_totals"] = "images/maps/full/interpolated_precip_totals.png";
+            map_address["growing_degree_days"] = "images/maps/full/interpolated_growing_degree_days.png";
+            map_address["historical_crop_yields"] = "images/maps/full/interpolated_historical_crop_yields.png";
+
+            // Sets up the main page's base map
+            document.onreadystatechange = function() {
+            if (document.readyState === 'complete') {
+                var url = window.location.href;
+                var queryString = url ? url.split('#')[1] : window.location.search.slice(1);
+                for (var key in map_address) {
+                    if(queryString == key){
+                        default_flag = 0;
+                        document.getElementById("map_frame").src=map_address[key];
+                        document.getElementById("map_description").innerHTML=desc_text[key];
+                    }
+                }
+                if(default_flag){
+                    document.getElementById("map_frame").src="images/maps/full/interpolated_air_temp.png";
+                    document.getElementById("map_description").innerHTML=desc_text["air_temp"];
+                }
+            }
+            };
+            function update_map(){
+                var image_source = document.getElementById("map_frame").src;
+                var image_source_query = image_source.split('?')[0];
+                var d = new Date();
+                var seconds = Math.round(d.getTime()/1000);
+                image_source = image_source_query + '?t=' + seconds;
+                document.getElementById("map_frame").src = image_source;
+            };
+
+            function changeImage(imgID, newImage, descId, altID) {
+                var d = new Date();
+                var seconds = Math.round(d.getTime()/1000);
+                document.getElementById(imgID).src= newImage+'?t='+seconds;
+                document.getElementById("map_description").innerHTML =desc_text[descId];
+                document.getElementById(imgID).alt = altID;
+                var new_url = window.location.href.split('#')[0];
+                new_url += '#'+descId;
+                window.location.href = new_url;
+                return false;
+            };
+        </script>
     </head>
     <body>
-        <header class="center">
-            <nav>
-                <ul>
-                    <li>
-                        <a href="./pages/boot_heel.html" style="text-decoration: none; color: black;">Boot Heel</a>
-                    </li>
-                </ul>
-            </nav>
+        <header>
+            <h1>Missouri AgMaps</h1>
+            <p>Welcome to Missouri AgMaps, this site is updated every 10 minutes using combined <abbr title="Automated Surface Observing System"><a href="https://mesonet.agron.iastate.edu/ASOS/" style="text-decoration: none;">ASOS</a></abbr> and <a href="http://agebb.missouri.edu/weather/stations/index.php" style="text-decoration: none;">Mesonet</a> data across Missouri.</p>
         </header>
-        <main></main>
+        <main>
+            <section id="map_selection">
+                <h2>Maps</h2>
+                <ul>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_air_temp.png', 'air_temp', 'airTemperature')">Air Temperature</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_dew_point.png', 'dew_point', 'dewPoint')">Dewpoint Temperature</a></li>
+                </ul>
+            </section>
+            <section id="map_display">
+                <h2>Station Map</h2>
+                <figure>
+                    <img id="map_frame" src="./images/maps/full/inrerpolated_air_temp.png" alt="Missouri Air Temperature Map">
+                    <figcaption id="map_description">Air temperature is measured at a height of 5.5 feet above ground level for all datasets.</figcaption>
+                </figure>
+            </section>
+        </main>
     </body>
 </html>
