@@ -6,13 +6,8 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="css/custom.css">
         <link rel="icon" type="image/png" href="images/icons/favicon.png">
-        <link rel="script" href="js/updater.js">
         <title>Missouri AgMaps</title>
-        <style>
-            a {
-                color : rgb(25, 87, 25)
-            }
-        </style>
+        <script src="./js/updater.js"></script>
         <script>
             var default_flag = 1;
             var interval_1 = setInterval(function(){
@@ -43,60 +38,56 @@
             map_address["growing_degree_days"] = "images/maps/full/interpolated_growing_degree_days.png";
             map_address["historical_crop_yields"] = "images/maps/full/interpolated_historical_crop_yields.png";
 
-            // Sets up the main page's base map
-            document.onreadystatechange = function() {
-            if (document.readyState === 'complete') {
-                var url = window.location.href;
-                var queryString = url ? url.split('#')[1] : window.location.search.slice(1);
-                for (var key in map_address) {
-                    if(queryString == key){
-                        default_flag = 0;
-                        document.getElementById("map_frame").src=map_address[key];
-                        document.getElementById("map_description").innerHTML=desc_text[key];
-                    }
+            window.addEventListener('scroll', function() {
+                const navbar = document.getElementById('navigationBar');
+                // Check if the scroll position is greater than a certain value (e.g., 50px)
+                if (window.scrollY > 50) {
+                    navbar.classList.remove('navBar')
+                    navbar.classList.add('navBarScrolled');
+                    navbar.classList.add('fixed-top');
+                } else {
+                    navbar.classList.remove('navBarScrolled');
+                    navbar.classList.remove('fixed-top');
+                    navbar.classList.add('navBar');
                 }
-                if(default_flag){
-                    document.getElementById("map_frame").src="images/maps/full/interpolated_air_temp.png";
-                    document.getElementById("map_description").innerHTML=desc_text["air_temp"];
-                }
-            }
-            };
-            function update_map(){
-                var image_source = document.getElementById("map_frame").src;
-                var image_source_query = image_source.split('?')[0];
-                var d = new Date();
-                var seconds = Math.round(d.getTime()/1000);
-                image_source = image_source_query + '?t=' + seconds;
-                document.getElementById("map_frame").src = image_source;
-            };
-
-            function changeImage(imgID, newImage, descId, altID) {
-                var d = new Date();
-                var seconds = Math.round(d.getTime()/1000);
-                document.getElementById(imgID).src= newImage+'?t='+seconds;
-                document.getElementById("map_description").innerHTML =desc_text[descId];
-                document.getElementById(imgID).alt = altID;
-                var new_url = window.location.href.split('#')[0];
-                new_url += '#'+descId;
-                window.location.href = new_url;
-                return false;
-            };
+            });            
         </script>
     </head>
     <body>
-        <header>
+        <div id="navigationBar" class="navBar">
+            <nav>
+                <div id="pages">
+                    <a href="./pages/boot_heel.html" class="" aria-label="Link to Boot Heel Page">Boot Heel</a>
+                    <a href="./pages/mid_missouri.html" class="" aria-label="Link to Mid Missouri Page">Mid Missouri</a>
+                    <a href="./pages/north_western_missouri.html" class="" aria-label="Link to North-Western Missouri Page">North-Western Missouri</a>
+                    <a href="./pages/northern_missouri.html" class="" aria-label="Link to Northern Missouri Page">Northern Missouri</a>
+                    <a href="./pages/southern_missouri.html" class="" aria-label="Link to Southern Missouri Page">Southern Missouri</a>
+                    <a href="./index.html" class="" aria-label="Link to Home Page">Home</a>
+                </div>
+            </nav>
+        </div>
+        
+        <header class="headerContainer" style="text-align: center;">
             <h1>Missouri AgMaps</h1>
             <p>Welcome to Missouri AgMaps, this site is updated every 10 minutes using combined <abbr title="Automated Surface Observing System"><a href="https://mesonet.agron.iastate.edu/ASOS/" style="text-decoration: none;">ASOS</a></abbr> and <a href="http://agebb.missouri.edu/weather/stations/index.php" style="text-decoration: none;">Mesonet</a> data across Missouri.</p>
         </header>
-        <main>
-            <section id="map_selection">
+        <main class="bodyContainer">
+            <section id="map_selection" class="float_left">
                 <h2>Maps</h2>
                 <ul>
                     <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_air_temp.png', 'air_temp', 'airTemperature')">Air Temperature</a></li>
                     <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_dew_point.png', 'dew_point', 'dewPoint')">Dewpoint Temperature</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_relative_humidity.png', 'relative_humidity', 'relativeHumidity')">Relative Humidity</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_wind_speed.png', 'wind_speed', 'windSpeed')">Wind Speed</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_wind_gust.png', 'wind_gust', 'windGust')">Wind Gust</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_precip_totals.png', 'precip_totals', 'precipitationTotals')">24hr Precipitation Totals</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_soil_temp_2in.png', 'soil_temp_2in', '2inSoilTemperatures')">2-in Soil Temperatures</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_soil_temp_4in.png', 'soil_temp_4in', '4inSoilTemperatures')">4-in Soil Temperatures</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_growing_degree_days.png', 'growing_degree_days', 'growingDegreeDays')">Growing Degree</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_historical_crop_yields.png', 'historical_crop_yields', 'historicalCropYield')">Historical Crop Yields</a></li>
                 </ul>
             </section>
-            <section id="map_display">
+            <section id="map_display" class="float_right justify_right">
                 <h2>Station Map</h2>
                 <figure>
                     <img id="map_frame" src="./images/maps/full/inrerpolated_air_temp.png" alt="Missouri Air Temperature Map">
@@ -104,5 +95,23 @@
                 </figure>
             </section>
         </main>
+        <footer class="footerContainer">
+            <section id="dataInfo" class="float_left">
+                <p>Data</p>
+            </section>
+            <section id="contactInfo" class="float_right justify_right">
+                <address>
+                    <div style="text-align: left;">
+                        <h2>Contact Information:</h2>
+                        <p>Missouri AgMaps Team:</p>
+                        <p>&nbsp;Team: Nathan Beach, Sam McCurdy</p>
+                        <p>&nbsp;Emails:<a href="mailto:nathanbeach123@gmail.com">Nathan</a>, <a href="mailto:sammccurdy04@gmail.com">Sam</a></p>
+                    </div>
+                </address>
+            </section>
+        </footer>
+        <div style="background-color: white; padding-bottom: 1000px;">
+            <p>Filler text</p>
+        </div>
     </body>
 </html>
