@@ -22,6 +22,7 @@ import pandas as pd
 import geopandas as gpd
 import cartopy.crs as ccrs
 from typing import Union, Optional, List, Tuple
+import matplotlib.pyplot as plt
 
 def web_fetch(api_url : Optional[str] = None,
                   url : Optional[str] = None,
@@ -156,7 +157,7 @@ def local_fetch(URL : Optional[str] = None,
                      TYPE : Optional[str] = None,
                      variables: Optional[Union[List[str], str]] = None,
                      time_range: Optional[Union[List[Union[str,pd.Timestamp]], str]] = None,
-                     spatial_bounds: Optional[Union[List[Union[float, int], Tuple[Union[float, int]]]]] = None,
+                     spatial_bounds: Optional[Union[List[Union[float, int]], Tuple[Union[float, int]]]] = None,
                      output:Optional[Union[os.PathLike, str]] = None,
                      format_method: Optional[str] = None) -> xr.Dataset:
     '''
@@ -210,7 +211,7 @@ def data_handler(PATH : Union[List[str], str],
                  variables: Optional[Union[List[str], str]] = None,
                  time_range: Optional[Union[List[Union[str, pd.Timestamp]], str]] = None,
                  time_filter: Optional[str] = None,
-                 spatial_bounds: Optional[Union[List[Union[float, int], Tuple[Union[float, int]]]]] = None,
+                 spatial_bounds: Optional[Union[List[Union[float, int]], Tuple[Union[float, int]]]] = None,
                  levels: Optional[Union[List[str], str]] = None,
                  regrid_resolution: Optional[Union[Tuple[Union[float, int]], List[Union[float, int]]]] = None,
                  regrid_method: Optional[str] = None,
@@ -252,6 +253,10 @@ def data_handler(PATH : Union[List[str], str],
         
         format_method (Optional str): The desired format of the output data (e.g. 'netCDF', 'CSV', 'Pandas DataFrame', etc...).
     '''
+    # Create two data trees one that takes all modifications and one that stores them by one modification.
+    
+    data_full = {}
+    data_mod = {}
     
     # Helper functioin for normalizing variables and levels
     
@@ -275,9 +280,12 @@ def data_handler(PATH : Union[List[str], str],
     
     #=========================# PREPROCESSING LOGIC #=========================#
     
+    ## 1. Process the PATH variable to ensure that at least one path has been provided. Will Check the file extention later.
+    
     if not PATH:
         raise ValueError("The 'PATH' parameter must be provided to fetch data. Please provide at least one path to proceed.")
     
+    ## 2. Process the rest of the normalized variables with the helper function. Shouldn't need too much help from outside functions.
     
     path_method = _normalize_list_input(PATH_METHOD, 'PATH_METHOD')
     
@@ -295,7 +303,100 @@ def data_handler(PATH : Union[List[str], str],
     
     format_method = _normalize_list_input(format_method, 'format_method')
     
-    pass
+    ## 3. Reformat and normalize the abnormally formatted variables such as time and spatioal bounds. 
+    
+    if time_range:
+        if not (isinstance(time_range, list) and len(time_range) >= 2):
+            raise ValueError("The 'time_range' parameter must be a list with at least two elements (start and end point).")
+        try:
+            # Convert all elements to pandas Timestamps for internal consistency
+            time_range = [pd.to_datetime(time) for time in time_range]
+        except Exception as e:
+            raise ValueError(f"The 'time_range' elements must be convertible to pd.Timestamp (e.g., 'YYYY-MM-DD'). Error: {e}")
+    
+    if spatial_bounds:
+        # Check for list/tuple first
+        if not isinstance(spatial_bounds, (list, tuple)):
+            # Added a clearer message for non-list/tuple/dict
+            raise ValueError("The 'spatial_bounds' must be a list or tuple (e.g., [min_lon, min_lat, max_lon, max_lat]).")
+        
+        # If it's a list/tuple, ensure it has the expected number of coordinates
+        if len(spatial_bounds) != 4:
+            print("Warning: Common spatial bounds use 4 elements [min_lon, min_lat, max_lon, max_lat]. Proceeding with the provided list/tuple.")
+            
+        try:
+            # Attempt to convert all elements to float
+            spatial_bounds = [float(coord) for coord in spatial_bounds]
+        except Exception as e:
+            raise ValueError(f"The 'spatial_bounds' parameter must contain only values convertible to floats. Error: {e}")
+    
+    #=========================# FETCHING LOGIC #=========================#
+    ACCEPTED_FORMATS = ('.nc4', '.nc', 'netCDF', 'csv', '.xml')
+    
+    if PATH_METHOD:
+        MULTIPLE_TYPE = ['list', 'multiple', 'index', 'many']
+        SINGLULAR_TYPE = ['single', 'one', 'singular']
+        if PATH_METHOD.lower() in MULTIPLE_TYPE:
+            file_dirs = [os.path.join(PATH,dir) for dir in os.listdir(PATH) if dir.lower().endswith(ACCEPTED_FORMATS)]
+            print(file_dirs)
+            data = xr.open_mfdataset(file_dirs, data_vars='all')
+        elif PATH_METHOD.lower() in SINGLULAR_TYPE:
+            data = xr.open_dataset(PATH)
+        else:
+            raise KeyError(f"The method provided to parse your path wasn't recognized {PATH_METHOD}.\nPlease provide the method you prefer in type \n   multiple: {MULTIPLE_TYPE}\n   single: {SINGLULAR_TYPE}")
+
+    elif PATH.endswith('/'):
+        try:
+            file_dirs = [os.path.join(PATH,dir) for dir in os.listdir(PATH) if dir.lower().endswith(ACCEPTED_FORMATS)]
+            data = xr.open_mfdataset(file_dirs, data_vars='all')
+            if not data:
+                raise ValueError(f"When trying to parse through your files encountered one of the following problems: \
+                                    \n   1. Your PATH doesn't contain any files of the format {ACCEPTED_FORMATS} \
+                                    \n   2. Your PATH doesn't contain any files in which case '{file_dirs}' will be empty. \
+                                    \n   3. Your PATH does contian files but the files don't contain any data.")
+        except Exception as e:
+            raise ValueError(f"An error occured after trying to parse through multiple files in the provided path.\nError: {e}")
+    elif PATH.endswith(ACCEPTED_FORMATS):
+        try:
+            data = xr.open_dataset(PATH)
+            if not data:
+                raise ValueError(f"When trying to open your dataset from {PATH} encountered one of the following problems: \
+                    \n   1. Your PATH doesn't point to any file with an accepted format {ACCEPTED_FORMATS} \
+                    \n   2. Your PATH pointed to a file but the file didn't contain any data and thus your data is empty")
+        except Exception as e:
+            raise ValueError(f"When trying to open your file, ran into an error: {e}")
+    
+    data_mod = data.copy()
+    
+    #=========================# Spatial Filtering #=========================#
+    
+    if spatial_bounds:
+        if len(spatial_bounds) != 4:
+            raise ValueError("Latitude and Longitude must contain 4 elements: [min_lat, max_lat, min_lon, max_lon]")
+        
+        ## 1. Standardize the coordinate variables
+        try:
+            min_lat, max_lat, min_lon, max_lon = [float(coord) for coord in spatial_bounds]
+        except Exception as e:
+            raise ValueError(f"Lat/Lon parsing was broken by an error: {e}")
+        
+        ## 2. Identify coordinate names
+        lat_dim = next((d for d in data.dims if d.lower() in ['lat', 'latitude']), 'lat')
+        lon_dim = next((d for d in data.dims if d.lower() in ['lon', 'longitude']), 'lon')
+        
+        ## 3. Apply filtering
+        try:
+            data = data.sel(**{
+                lat_dim: slice(min_lat, max_lat),
+                lon_dim: slice(min_lon, max_lon)
+            })
+            data_spatial = data_mod.sel(**{
+                lat_dim: slice(min_lat, max_lat),
+                lon_dim: slice(min_lon, max_lon)
+            })
+        except KeyError as e:
+            raise KeyError(f"An error occured when trying to filter the data array: \n   {e}")
+
                                  
 class processor():
     def __init__(self, url,):
@@ -303,15 +404,44 @@ class processor():
     def net_cdf_fetch(self):
         pass
 
-web_fetch(url='https://www.ncei.noaa.gov/data/oceans/woa/WOA18/DATA/temperature/netcdf/95A4/0.25/woa18_95A4_t00_04.nc',
-              variables=["Temperature", 'Humidity'],
-              time_range=['20230101', '20230131'],
-              spatial_bounds=[-10.0, 35.0, 10.0, 45.0],
-              levels=['1000mb', '850mb'],
-              format='netCDF')
-local_fetch()
+spatial_bounds = (35, 42, -96, -87)
 
+data = xr.open_dataset("/home/nsbtwd/Code/Thermo/net_cdf_files/MERRA2_HAQAST_CNN_L4_V1.20200908.nc4")
 
+data_mod = data.copy()
 
+if len(spatial_bounds) != 4:
+    raise ValueError("Latitude and Longitude must contain 4 elements: [min_lat, max_lat, min_lon, max_lon]")
 
+## 1. Standardize the coordinate variables
+try:
+    min_lat, max_lat, min_lon, max_lon = [float(coord) for coord in spatial_bounds]
+except Exception as e:
+    raise ValueError(f"Lat/Lon parsing was broken by an error: {e}")
 
+## 2. Identify coordinate names
+lat_dim = next((d for d in data.dims if d.lower() in ['lat', 'latitude']), 'lat')
+lon_dim = next((d for d in data.dims if d.lower() in ['lon', 'longitude']), 'lon')
+print(lat_dim)
+print(lon_dim)
+
+## 3. Apply filtering
+try:
+    data = data.sel(**{
+        lat_dim: slice(min_lat, max_lat),
+        lon_dim: slice(min_lon, max_lon)
+    })
+    data_spatial = data_mod.sel(**{
+        lat_dim: slice(min_lat, max_lat),
+        lon_dim: slice(min_lon, max_lon)
+    })
+except KeyError as e:
+    raise KeyError(f"An error occured when trying to filter the data array: \n   {e}")
+
+print(data)
+print(data_spatial)
+print(f"data times: \n{data['time']}")
+fig, ax = plt.subplots(1,2, figsize=(20,4))
+data["MERRA2_CNN_Surface_PM25"].sel(time='2020-09-08T00:30:00.000000000').plot(ax=ax[0])
+data_spatial["MERRA2_CNN_Surface_PM25"].sel(time='2020-09-08T00:30:00.000000000').plot(ax=ax[1])
+plt.show()
