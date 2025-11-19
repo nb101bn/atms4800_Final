@@ -256,7 +256,7 @@ def data_handler(PATH : Union[List[str], str],
     # Create two data trees one that takes all modifications and one that stores them by one modification.
     
     data_full = {}
-    data_mod = {}
+
     
     # Helper functioin for normalizing variables and levels
     
@@ -376,7 +376,7 @@ def data_handler(PATH : Union[List[str], str],
         
         ## 1. Standardize the coordinate variables
         try:
-            min_lat, max_lat, min_lon, max_lon = [float(coord) for coord in spatial_bounds]
+            min_lon, min_lat, max_lon, max_lat = [float(coord) for coord in spatial_bounds]
         except Exception as e:
             raise ValueError(f"Lat/Lon parsing was broken by an error: {e}")
         
@@ -396,7 +396,26 @@ def data_handler(PATH : Union[List[str], str],
             })
         except KeyError as e:
             raise KeyError(f"An error occured when trying to filter the data array: \n   {e}")
-
+        data_full['spatial'] = data_spatial
+    
+    #=========================# Temporal Filter #=========================#
+    if time_range:
+        
+        ## 1. Identify coordinate names
+        
+        time_dim = next((d for d in data.dims if d.lower() in ['time', 'date']), 'time')
+        
+        if time_dim is None:
+            raise ValueError("Couldn't find any dimentions that match time or date in your dataset, check that there is a propper time dimention or \
+                try to filter manually if one isn't present.")
+        
+        if len(time_range)<= 1:
+            data.sel(time_dim=time_range[0])
+        if len(time_range) > 1 and len(time_range) <= 2:
+            data.sel(time_dim=slice(time_range[0], time_range[1]))
+        if len(time_range) >2 and time_filter is None:
+            raise KeyError("Too many data arguments for time without specification on how the filter should occur. Please input a time filter for greater than two time arguments.")
+        
                                  
 class processor():
     def __init__(self, url,):
