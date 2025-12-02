@@ -170,7 +170,13 @@ def fetch_and_process_asos(target_datetime: datetime) -> pd.DataFrame:
 
     # Final standardized columns for ASOS
     final_cols = ['station', 'valid', 'lat', 'lon', 'air_temp_c', 'dew_point_c', 'rh_percent', 
-                  'wind_speed_ms', 'wind_gust_ms', 'u', 'v']
+                  'wind_speed_ms', 'wind_gust_ms', 'u', 'v', 
+                  'soil_temp_2in_c', 'soil_temp_4in_c'] # Added for merge standardization
+    
+    # Fill in NaNs for the new soil columns for ASOS
+    df_filtered['soil_temp_2in_c'] = np.nan
+    df_filtered['soil_temp_4in_c'] = np.nan
+
     print(f"[ASOS] Processed {len(df_filtered)} unique reports.")
     return df_filtered[final_cols]
 
@@ -266,13 +272,14 @@ def parse_mesonet_data(raw_text: str, metadata: dict) -> pd.DataFrame:
     df['Wind_Dir_Deg'] = pd.to_numeric(df_raw[num_cols - 3], errors='coerce')
     df['Wind_Speed_MPH'] = pd.to_numeric(df_raw[num_cols - 4], errors='coerce')
     
-    # Soil columns are explicitly set to NaN unless manually parsed later.
-    # Since we only care about surface met, we set these to NaN for standardization.
-    soil_cols_to_nan = ['Soil_Temp_2in_F', 'Soil_Temp_4in_F', 'Soil_Temp_8in_F', 
-                        'Soil_Temp_20in_F', 'Soil_Temp_40in_F']
-    for col in soil_cols_to_nan:
-        df[col] = np.nan
-        
+    # Map dynamic soil columns (start index 5, end index num_cols - 4)
+    soil_data_cols = [col for col in range(5, num_cols - 4)]
+    
+    # Assign soil columns: only assign the 2in and 4in if they exist in the raw data
+    # The first soil column is usually index 5, second is index 6, etc.
+    df['Soil_Temp_2in_F'] = pd.to_numeric(df_raw.get(5), errors='coerce') if 5 < num_cols - 4 else np.nan
+    df['Soil_Temp_4in_F'] = pd.to_numeric(df_raw.get(6), errors='coerce') if 6 < num_cols - 4 else np.nan
+    
     # --- Start Cleaning ---
     df = df.dropna(how='all', subset=['Time_HHMM', 'Month', 'Day']).reset_index(drop=True)
     
@@ -319,6 +326,12 @@ def parse_mesonet_data(raw_text: str, metadata: dict) -> pd.DataFrame:
     df['dew_point_c'] = tdew_k.to('degC').magnitude
     df['rh_percent'] = rel_hum.magnitude
     
+    # Soil Temp Conversion (F -> C)
+    soil_2in_f = pd.to_numeric(df['Soil_Temp_2in_F'], errors='coerce').values * units.degF
+    soil_4in_f = pd.to_numeric(df['Soil_Temp_4in_F'], errors='coerce').values * units.degF
+    df['soil_temp_2in_c'] = soil_2in_f.to('degC').magnitude
+    df['soil_temp_4in_c'] = soil_4in_f.to('degC').magnitude
+    
     # Wind Conversion
     wind_speed_mph = pd.to_numeric(df['Wind_Speed_MPH'], errors='coerce').fillna(np.nan)
     wind_dir_deg = pd.to_numeric(df['Wind_Dir_Deg'], errors='coerce').fillna(np.nan)
@@ -338,7 +351,8 @@ def parse_mesonet_data(raw_text: str, metadata: dict) -> pd.DataFrame:
     df['wind_gust_ms'] = np.nan 
 
     final_cols = ['station', 'valid', 'lat', 'lon', 'air_temp_c', 'dew_point_c', 'rh_percent', 
-                  'wind_speed_ms', 'wind_gust_ms', 'u', 'v']
+                  'wind_speed_ms', 'wind_gust_ms', 'u', 'v', 
+                  'soil_temp_2in_c', 'soil_temp_4in_c']
     
     print(f"       -[MESONET] Cleaned data for {metadata['station_id']} (Num Rows: {len(df)}):\n{df[final_cols].head()}")
     return df[final_cols]
@@ -377,7 +391,7 @@ def fetch_and_process_mesonet(target_datetime: datetime) -> pd.DataFrame:
             if not mesonet_df.empty:
                 # 2. Convert Naive LST column to UTC
                 # Apply the fixed offset to the entire 'valid' column (LST + 6 hours = UTC)
-                mesonet_df['valid_utc'] = mesonet_df['valid'] + LST_TO_UTC_OFFSET
+                mesonet_df['valid_utc'] = pd.to_datetime(mesonet_df['valid']) + LST_TO_UTC_OFFSET
                 
                 # 3. Filter using the standardized UTC time (exactly the target hour, 0-59 minutes)
                 # We target the date and hour of the observation time.
@@ -417,7 +431,8 @@ def regrid_and_save(raw_df: pd.DataFrame, resolution_km: float, bounds: list, ou
     print("\n-> Converting to xarray and interpolating to regular grid (scipy.interpolate.griddata)...")
     
     # Ensure all data columns are numeric before extraction
-    numeric_cols = ['lat', 'lon', 'air_temp_c', 'dew_point_c', 'rh_percent', 'wind_speed_ms', 'wind_gust_ms', 'u', 'v']
+    numeric_cols = ['lat', 'lon', 'air_temp_c', 'dew_point_c', 'rh_percent', 'wind_speed_ms', 'wind_gust_ms', 'u', 'v', 
+                    'soil_temp_2in_c', 'soil_temp_4in_c']
     for col in numeric_cols:
         raw_df[col] = pd.to_numeric(raw_df[col], errors='coerce')
         
@@ -432,9 +447,12 @@ def regrid_and_save(raw_df: pd.DataFrame, resolution_km: float, bounds: list, ou
         'Td_2m': raw_df['dew_point_c'].values,
         'RH': raw_df['rh_percent'].values,
         'WS': raw_df['wind_speed_ms'].values,
-        'WG': raw_df['wind_gust_ms'].values.copy(), # Copy gust data (may contain NaNs from mesonet)
+        'WG': raw_df['wind_gust_ms'].values.copy(), 
         'U_wind': raw_df['u'].values, 
         'V_wind': raw_df['v'].values,
+        # New Soil Temperature Variables
+        'ST_2in': raw_df['soil_temp_2in_c'].values,
+        'ST_4in': raw_df['soil_temp_4in_c'].values,
     }
 
     # --- Determine Grid Size (3km resolution) ---
@@ -461,7 +479,8 @@ def regrid_and_save(raw_df: pd.DataFrame, resolution_km: float, bounds: list, ou
     for var_name, var_data in data.items():
         valid_indices = ~np.isnan(var_data)
         
-        if np.sum(valid_indices) < 4: 
+        # NOTE: Only require 2 valid points for basic mapping of sparse Mesonet data
+        if np.sum(valid_indices) < 2: 
              print(f"Warning: Not enough valid data points for {var_name} (found {np.sum(valid_indices)}). Skipping interpolation.")
              gridded_data[var_name] = np.full((ny, nx), np.nan)
              continue
@@ -491,6 +510,8 @@ def regrid_and_save(raw_df: pd.DataFrame, resolution_km: float, bounds: list, ou
             'WG': (('latitude', 'longitude'), gridded_data.get('WG', np.zeros((ny, nx))), {'units': 'm/s', 'long_name': 'Wind Gust Speed'}),
             'U_wind': (('latitude', 'longitude'), gridded_data.get('U_wind', np.zeros((ny, nx))), {'units': 'm/s', 'long_name': 'U-component of Wind'}),
             'V_wind': (('latitude', 'longitude'), gridded_data.get('V_wind', np.zeros((ny, nx))), {'units': 'm/s', 'long_name': 'V-component of Wind'}),
+            'ST_2in': (('latitude', 'longitude'), gridded_data.get('ST_2in', np.full((ny, nx), np.nan)), {'units': 'degC', 'long_name': 'Soil Temp 2in Depth'}),
+            'ST_4in': (('latitude', 'longitude'), gridded_data.get('ST_4in', np.full((ny, nx), np.nan)), {'units': 'degC', 'long_name': 'Soil Temp 4in Depth'}),
         }
     )
     
@@ -591,6 +612,8 @@ def process_and_map_data(
         'RH': {'title': 'Relative Humidity', 'cmap': 'Greens'},
         'WS': {'title': 'Wind Speed', 'cmap': 'YlOrRd'},
         'WG': {'title': 'Wind Gust Speed', 'cmap': 'Reds'},
+        'ST_2in': {'title': 'Soil Temp 2in', 'cmap': 'YlOrBr'}, # New plot
+        'ST_4in': {'title': 'Soil Temp 4in', 'cmap': 'YlOrBr_r'}, # New plot
     }
     
     for var_key, plot_info in plot_variables.items():
@@ -612,7 +635,7 @@ if __name__ == '__main__':
         merged_raw_data = process_and_map_data(EXAMPLE_DATE, EXAMPLE_HOUR_UTC)
 
         print("\n--- Final Merged Data Table (ASOS + Mesonet) ---")
-        print(merged_raw_data[['station', 'valid', 'lat', 'lon', 'air_temp_c', 'rh_percent', 'wind_speed_ms']].head(10))
+        print(merged_raw_data[['station', 'valid', 'lat', 'lon', 'air_temp_c', 'rh_percent', 'soil_temp_2in_c']].head(10))
         
     except Exception as e:
         print(f"\n[CRITICAL ERROR] The data processing workflow failed: {e}")
