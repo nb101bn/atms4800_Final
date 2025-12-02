@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="icon" type="image/png" href="images/icons/favicon.png">
+        <title>Missouri AgMaps</title>
+        <script src="./js/updater.js"></script>
+        
+        <style>
+            /* General Styling & Typography */
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                color: #333; /* Dark gray for text */
+                background-color: #f4f4f4; /* Light background */
+            }
+
+            a {
+                color: #007bff; /* Standard blue link color */
+                text-decoration: none;
+                transition: color 0.3s ease;
+            }
+
+            a:hover {
+                color: #0056b3; /* Darker blue on hover */
+                text-decoration: underline;
+            }
+
+            h1, h2, h3 {
+                color: #2c3e50; /* A darker, professional color for headings */
+                font-weight: 600;
+            }
+
+            /* Header & Title Section */
+            /* Removed inline style; now handled by CSS */
+            .headerContainer {
+                background-color: #ffffff;
+                padding: 60px 20px 20px;
+                border-bottom: 3px solid #3498db; /* A splash of color */
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                text-align: center; /* Centering for the header text */
+            }
+
+            .headerContainer h1 {
+                font-size: 2.5em;
+                margin-bottom: 10px;
+            }
+
+            .headerContainer p {
+                font-size: 1.1em;
+                max-width: 800px;
+                margin: 0 auto;
+            }
+
+            /* Navigation Bar Styling */
+            .navBar {
+                background-color: #2c3e50; /* Dark background for navigation */
+                padding: 10px 0;
+                transition: all 0.3s ease;
+                z-index: 1000;
+                width: 100%;
+            }
+
+            .navBar nav {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 20px;
+            }
+
+            #pages {
+                display: flex;
+                justify-content: flex-end; /* Align links to the right */
+                align-items: center;
+            }
+
+            #pages a {
+                color: #ecf0f1; /* Light gray text for links */
+                padding: 8px 15px;
+                margin-left: 5px;
+                border-radius: 4px;
+                transition: background-color 0.3s ease;
+                font-weight: 500;
+                text-transform: uppercase;
+                font-size: 0.9em;
+            }
+
+            #pages a:hover {
+                background-color: #34495e; /* Slightly lighter dark color on hover */
+                text-decoration: none;
+            }
+
+            /* Scrolled Navigation (Sticky Effect) */
+            .fixed-top {
+                position: fixed;
+                top: 0;
+            }
+
+            .navBarScrolled {
+                background-color: #3498db; /* A prominent color when scrolled */
+                padding: 5px 0;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            }
+
+            .navBarScrolled #pages a:hover {
+                background-color: #2980b9;
+            }
+
+
+            /* Main Content Layout */
+            .bodyContainer {
+                max-width: 1200px;
+                margin: 30px auto;
+                padding: 0 20px;
+                display: flex; /* Use Flexbox for side-by-side layout */
+                gap: 30px; /* Space between the two sections */
+            }
+
+            /* Section Styling */
+            #map_selection {
+                flex: 1; /* Takes up 1 part of the space */
+                background-color: #ffffff;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            }
+
+            #map_display {
+                flex: 2; /* Takes up 2 parts of the space (wider) */
+                background-color: #ffffff;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            }
+
+            /* Map List Styling */
+            #map_selection ul {
+                list-style: none; /* Remove bullet points */
+                padding: 0;
+            }
+
+            #map_selection li a {
+                display: block;
+                padding: 10px 0;
+                border-bottom: 1px solid #eee;
+                font-weight: 500;
+            }
+
+            #map_selection li:last-child a {
+                border-bottom: none;
+            }
+
+            /* Map Display Styling */
+            #map_display h2 {
+                text-align: center;
+                margin-top: 0;
+            }
+
+            #map_frame {
+                max-width: 100%;
+                height: auto;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                display: block; /* Ensures it behaves nicely in the center */
+                margin: 0 auto;
+            }
+
+            #map_description {
+                text-align: center;
+                margin-top: 10px;
+                font-style: italic;
+                color: #666;
+                padding: 5px;
+                border-top: 1px solid #eee;
+            }
+
+            /* Footer Styling */
+            .footerContainer {
+                background-color: #34495e;
+                color: #ecf0f1;
+                padding: 20px 0;
+                text-align: center;
+                border-top: 5px solid #3498db;
+                display: flex;
+                justify-content: space-around;
+                align-items: flex-start;
+            }
+
+            .footerContainer section {
+                max-width: 500px;
+                padding: 0 20px;
+            }
+
+            .footerContainer a {
+                color: #9ad4f8;
+            }
+
+            .footerContainer a:hover {
+                color: #ffffff;
+            }
+
+            .footerContainer h2 {
+                color: #ffffff;
+                font-size: 1.2em;
+                margin-top: 0;
+            }
+
+            .footerContainer address p {
+                margin: 5px 0;
+                font-size: 0.95em;
+            }
+            
+            /* The 'float' classes were used for old layout methods. We disable them for Flexbox. */
+            .float_left, .float_right, .justify_right { 
+                float: none; 
+                justify-content: unset;
+            }
+
+            /* Placeholder/Filler Styling (for bottom space) */
+            div[style*="padding-bottom: 1000px"] {
+                display: none; /* Hide this temporary filler content */
+            }
+
+            /* Responsive adjustments for smaller screens */
+            @media (max-width: 768px) {
+                .headerContainer {
+                    padding: 40px 10px 20px;
+                }
+                
+                #pages {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+
+                #pages a {
+                    margin: 5px 0;
+                    text-align: center;
+                }
+
+                .bodyContainer {
+                    flex-direction: column; /* Stack map and selection vertically */
+                    margin: 20px 10px;
+                    padding: 0;
+                }
+
+                .footerContainer {
+                    flex-direction: column;
+                    gap: 20px;
+                }
+
+                .footerContainer section {
+                    text-align: center;
+                }
+
+                .footerContainer address div {
+                    text-align: center !important; /* Override inline style for mobile */
+                }
+            }
+        </style>
+        <script>
+            var default_flag = 1;
+            var interval_1 = setInterval(function(){
+                update_map();
+            }, (1000*300));
+            var desc_text = [];
+            // Description texts for each variable possible on the map
+            desc_text["air_temp"] = "Air temperature is measured at a height of 5.5 feet above ground level for all datasets.";
+            desc_text["dew_point"] = "Dewpoint temperature is measured at 5.5 feet. It is the temperature to which air must be cooled for saturation to occur, given constant pressure and water vapor content.";
+            desc_text["relative_humidity"] = "Relative humidity is measured at 5.5 feet and is the measure of the water vapor in the air at a given temperature";
+            desc_text["wind_speed"] = "Wind speed is measured at a height of 33 feet above ground level for all datasets.";
+            desc_text["wind_gust"] = "Wind gust is measured at a height of 33 feet above ground level for all datasets. It is the peak wind speed recorded at the station on that day.";
+            desc_text["soil_temp_2in"] = "Soil temperature is measured at a dpth of 2-inches below bare ground";
+            desc_text["soil_temp_4in"] = "Soil temperature is measured at a dpth of 4-inches below bare ground";
+            desc_text["precip_totals"] = "Precipitation totals are measured at ground level and represent the total liquid precipitation that fell at the station over the past 24 hours.";
+            desc_text["growing_degree_days"] = "Growing degree days (GDD) are calculated by taking the average of the daily maximum and minimum temperatures."
+            desc_text["historical_crop_yields"] = "Historical crop yields are provided by the USDA National Agricultural Statistics Services (NASS) and represent the average yeilds for the past 10 years.";
+            // Map relative adresses for each variable possible on the map
+            var map_address = [];            
+            map_address["air_temp"] = "images/maps/full/interpolated_air_temp.png";
+            map_address["dew_point"] = "images/maps/full/interpolated_dew_point.png";
+            map_address["relative_humidity"] = "images/maps/full/interpolated_relative_humidity.png";
+            map_address["wind_speed"] = "images/maps/full/interpolated_wind_speed.png";
+            map_address["wind_gust"] = "images/maps/full/interpolated_wind_gust.png";
+            map_address["soil_temp_2in"] = "images/maps/full/interpolated_soil_temp_2in.png";
+            map_address["soil_temp_4in"] = "images/maps/full/interpolated_soil_temp_4in.png";
+            map_address["precip_totals"] = "images/maps/full/interpolated_precip_totals.png";
+            map_address["growing_degree_days"] = "images/maps/full/interpolated_growing_degree_days.png";
+            map_address["historical_crop_yields"] = "images/maps/full/interpolated_historical_crop_yields.png";
+
+            window.addEventListener('scroll', function() {
+                const navbar = document.getElementById('navigationBar');
+                // Check if the scroll position is greater than a certain value (e.g., 50px)
+                if (window.scrollY > 50) {
+                    navbar.classList.remove('navBar')
+                    navbar.classList.add('navBarScrolled');
+                    navbar.classList.add('fixed-top');
+                } else {
+                    navbar.classList.remove('navBarScrolled');
+                    navbar.classList.remove('fixed-top');
+                    navbar.classList.add('navBar');
+                }
+            });            
+        </script>
+    </head>
+    <body>
+        <div id="navigationBar" class="navBar">
+            <nav>
+                <div id="pages">
+                    <a href="./pages/boot_heel.html" class="" aria-label="Link to Boot Heel Page">Boot Heel</a>
+                    <a href="./pages/mid_missouri.html" class="" aria-label="Link to Mid Missouri Page">Mid Missouri</a>
+                    <a href="./pages/north_western_missouri.html" class="" aria-label="Link to North-Western Missouri Page">North-Western Missouri</a>
+                    <a href="./pages/northern_missouri.html" class="" aria-label="Link to Northern Missouri Page">Northern Missouri</a>
+                    <a href="./pages/southern_missouri.html" class="" aria-label="Link to Southern Missouri Page">Southern Missouri</a>
+                    <a href="./pages/data_archive.html" class="" aria-label="Link to Archived Data Page">Data Archive</a>
+                    <a href="./index.html" class="" aria-label="Link to Home Page">Home</a>
+                </div>
+            </nav>
+        </div>
+        
+        <header class="headerContainer">
+            <h1>Missouri AgMaps</h1>
+            <p>Welcome to Missouri AgMaps, this site is updated every 10 minutes using combined <abbr title="Automated Surface Observing System"><a href="https://mesonet.agron.iastate.edu/ASOS/" style="text-decoration: none;">ASOS</a></abbr> and <a href="http://agebb.missouri.edu/weather/stations/index.php" style="text-decoration: none;">Mesonet</a> data across Missouri.</p>
+        </header>
+
+        <main class="bodyContainer">
+            <section id="map_selection">
+                <h2>Maps</h2>
+                <ul>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_air_temp.png', 'air_temp', 'airTemperature')">Air Temperature</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_dew_point.png', 'dew_point', 'dewPoint')">Dewpoint Temperature</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_relative_humidity.png', 'relative_humidity', 'relativeHumidity')">Relative Humidity</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_wind_speed.png', 'wind_speed', 'windSpeed')">Wind Speed</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_wind_gust.png', 'wind_gust', 'windGust')">Wind Gust</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_precip_totals.png', 'precip_totals', 'precipitationTotals')">24hr Precipitation Totals</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_soil_temp_2in.png', 'soil_temp_2in', '2inSoilTemperatures')">2-in Soil Temperatures</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_soil_temp_4in.png', 'soil_temp_4in', '4inSoilTemperatures')">4-in Soil Temperatures</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_growing_degree_days.png', 'growing_degree_days', 'growingDegreeDays')">Growing Degree</a></li>
+                    <li><a href="" onclick="return changeImage('map_frame', 'images/maps/full/interpolated_historical_crop_yields.png', 'historical_crop_yields', 'historicalCropYield')">Historical Crop Yields</a></li>
+                </ul>
+            </section>
+            <section id="map_display">
+                <h2>Station Map</h2>
+                <figure>
+                    <img id="map_frame" src="./images/maps/full/inrerpolated_air_temp.png" alt="Missouri Air Temperature Map">
+                    <figcaption id="map_description">Air temperature is measured at a height of 5.5 feet above ground level for all datasets.</figcaption>
+                </figure>
+            </section>
+        </main>
+
+        <footer class="footerContainer">
+            <section id="dataInfo">
+                <p>Data</p>
+            </section>
+            <section id="contactInfo">
+                <address>
+                    <div>
+                        <h2>Contact Information:</h2>
+                        <p>Missouri AgMaps Team:</p>
+                        <p>&nbsp;Team: Nathan Beach, Sam McCurdy</p>
+                        <p>&nbsp;Emails:<a href="mailto:nathanbeach123@gmail.com">Nathan</a>, <a href="mailto:sammccurdy04@gmail.com">Sam</a></p>
+                    </div>
+                </address>
+            </section>
+        </footer>
+        <div style="background-color: white; padding-bottom: 1000px;">
+            <p>Filler text</p>
+        </div>
+    </body>
+</html>
