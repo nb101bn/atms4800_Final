@@ -472,7 +472,7 @@ def regrid_and_save(raw_df: pd.DataFrame, resolution_km: float, bounds: list, ou
             points[valid_indices], 
             var_data[valid_indices], 
             (X, Y), 
-            method='linear'
+            method='cubic'
         )
         gridded_data[var_name] = grid_vals
 
