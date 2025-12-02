@@ -495,7 +495,7 @@ def regrid_and_save(raw_df: pd.DataFrame, resolution_km: float, bounds: list, ou
     )
     
     ds.attrs['title'] = f'Gridded Missouri ASOS/Mesonet Data ({resolution_km}km)'
-    ds.attrs['source_time'] = ds['time'].item().isoformat()
+    ds.attrs['source_time'] = ds['time'].item()
     
     # --- Save netCDF (placeholder due to environment limitations) ---
     print(f"\n[OUTPUT] Simulated saving of netCDF file to: {output_filepath}")
@@ -534,7 +534,7 @@ def plot_gridded_data(ds: xr.Dataset, var_name: str, title: str, cmap: str):
     
     # Placeholder for display and saving PNG (using plt.close to prevent blocking)
     print(f"[OUTPUT] Map visualization for '{title}' generated.")
-    plt.close(fig)
+    plt.show()
 
 
 def process_and_map_data(
@@ -563,8 +563,10 @@ def process_and_map_data(
     # Concatenate the two DataFrames. Since columns are standardized, they merge cleanly.
     all_raw_df = pd.concat([raw_df_asos, raw_df_mesonet], ignore_index=True)
     
+    # *** FIX: Ensure the 'valid' column retains its datetime type after concatenation ***
+    all_raw_df['valid'] = pd.to_datetime(all_raw_df['valid'])
+
     # Drop rows that are missing critical data (Lat/Lon/Temp) to prevent gridding failure
-    # CRITICAL FIX: If ASOS has data, use it. Only fail if *both* are empty after merging.
     all_raw_df = all_raw_df.dropna(subset=['lat', 'lon', 'air_temp_c']).reset_index(drop=True)
 
     print(f"\n--- Merging Complete ---")
