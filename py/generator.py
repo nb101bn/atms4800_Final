@@ -14,6 +14,7 @@ import io
 import pandas as pd
 import xarray as xr
 from datetime import datetime, timedelta
+import os # NEW: Added os for file path management
 # Import SciPy for stable gridding
 import scipy.interpolate as si 
 import metpy.calc as mpcalc
@@ -32,6 +33,21 @@ GRID_RESOLUTION_KM = 3
 ASOS_BASE_URL = 'https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?network=MO_ASOS'
 # Mesonet Base URL
 MESONET_BASE_URL = 'http://agebb.missouri.edu/weather/stations/'
+
+# --- File Saving Configuration (Relative to the 'py' folder) ---
+BASE_DATA_DIR = os.path.join('.', 'Data')
+BASE_MAP_DIR = os.path.join('.', 'images', 'maps', 'full')
+
+# Mapping from xarray variable name to final PNG filename suffix
+VARIABLE_TO_FILENAME = {
+    'T_2m': 'air_temp',
+    'Td_2m': 'dew_point',
+    'RH': 'relative_humidity',
+    'WS': 'wind_speed',
+    'WG': 'wind_gust',
+    'ST_2in': 'soil_temp_2in',
+    'ST_4in': 'soil_temp_4in',
+}
 
 # --- Mesonet Station Metadata ---
 # This list is used to iterate over all Mesonet stations
@@ -426,7 +442,7 @@ def fetch_and_process_mesonet(target_datetime: datetime) -> pd.DataFrame:
 def regrid_and_save(raw_df: pd.DataFrame, resolution_km: float, bounds: list, output_filepath: str):
     """
     Converts raw station data to xarray, interpolates it to a regular grid,
-    and attempts to save as netCDF.
+    and saves the resulting NetCDF file.
     """
     print("\n-> Converting to xarray and interpolating to regular grid (scipy.interpolate.griddata)...")
     
@@ -518,14 +534,22 @@ def regrid_and_save(raw_df: pd.DataFrame, resolution_km: float, bounds: list, ou
     ds.attrs['title'] = f'Gridded Missouri ASOS/Mesonet Data ({resolution_km}km)'
     ds.attrs['source_time'] = ds['time'].item()
     
-    # --- Save netCDF (placeholder due to environment limitations) ---
-    print(f"\n[OUTPUT] Simulated saving of netCDF file to: {output_filepath}")
-    # In a real environment, you would use: ds.to_netcdf(output_filepath)
+    # --- NetCDF Saving Logic ---
+    try:
+        os.makedirs(BASE_DATA_DIR, exist_ok=True)
+        final_filepath = os.path.join(BASE_DATA_DIR, output_filepath)
+        ds.to_netcdf(final_filepath)
+        print(f"[OUTPUT] Successfully saved NetCDF file to: {final_filepath}")
+    except Exception as e:
+        print(f"[ERROR] Failed to save NetCDF file to {BASE_DATA_DIR}: {e}")
     
     return ds
 
 def plot_gridded_data(ds: xr.Dataset, var_name: str, title: str, cmap: str):
-    """Generates a map of the gridded data using a color table (contourf)."""
+    """
+    Generates a map of the gridded data and saves the resulting PNG file 
+    to the images/maps/full directory.
+    """
     print(f"\n-> Generating map for {title}...")
     
     data_var = ds[var_name]
@@ -553,9 +577,22 @@ def plot_gridded_data(ds: xr.Dataset, var_name: str, title: str, cmap: str):
     ax.set_title(f'{title} Gridded to {GRID_RESOLUTION_KM}km at {ds["time"].dt.strftime("%Y-%m-%d %H:%M UTC").item()}')
     fig.tight_layout()
     
-    # Placeholder for display and saving PNG (using plt.close to prevent blocking)
-    print(f"[OUTPUT] Map visualization for '{title}' generated.")
-    plt.show()
+    # --- PNG Saving Logic ---
+    try:
+        # Get the standardized filename suffix
+        filename_suffix = VARIABLE_TO_FILENAME.get(var_name, var_name.lower())
+        
+        # Construct the full path
+        png_filename = f'interpolated_{filename_suffix}.png'
+        os.makedirs(BASE_MAP_DIR, exist_ok=True)
+        final_filepath = os.path.join(BASE_MAP_DIR, png_filename)
+        
+        plt.savefig(final_filepath, bbox_inches='tight', dpi=150)
+        print(f"[OUTPUT] Successfully saved PNG map to: {final_filepath}")
+    except Exception as e:
+        print(f"[ERROR] Failed to save PNG map for {title}: {e}")
+        
+    plt.close(fig)
 
 
 def process_and_map_data(
@@ -597,7 +634,7 @@ def process_and_map_data(
         print("Final DataFrame is empty. Cannot proceed to regridding.")
         return pd.DataFrame()
 
-    # 4. Regrid and Save NetCDF
+    # 4. Regrid and Save NetCDF (Saving now handled internally by regrid_and_save)
     final_ds = regrid_and_save(
         raw_df=all_raw_df, 
         resolution_km=GRID_RESOLUTION_KM, 
@@ -612,8 +649,8 @@ def process_and_map_data(
         'RH': {'title': 'Relative Humidity', 'cmap': 'Greens'},
         'WS': {'title': 'Wind Speed', 'cmap': 'YlOrRd'},
         'WG': {'title': 'Wind Gust Speed', 'cmap': 'Reds'},
-        'ST_2in': {'title': 'Soil Temp 2in', 'cmap': 'YlOrBr'}, # New plot
-        'ST_4in': {'title': 'Soil Temp 4in', 'cmap': 'YlOrBr_r'}, # New plot
+        'ST_2in': {'title': 'Soil Temp 2in', 'cmap': 'YlOrBr'},
+        'ST_4in': {'title': 'Soil Temp 4in', 'cmap': 'YlOrBr_r'},
     }
     
     for var_key, plot_info in plot_variables.items():
